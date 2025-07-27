@@ -86,7 +86,7 @@ pyyaml==6.0.2
 sentry-sdk==2.20.0
 
 # Task scheduling
-celery-beat==2.7.0
+django-celery-beat==2.7.0
 
 # Rate limiting
 django-ratelimit==4.1.0
