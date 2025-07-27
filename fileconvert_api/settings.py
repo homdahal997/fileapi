@@ -233,7 +233,13 @@ CELERY_TIMEZONE = TIME_ZONE
 # File Upload Configuration
 FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB
-FILE_UPLOAD_TEMP_DIR = os.path.join(BASE_DIR, 'temp')
+
+# Use system temp directory for Render.com, local temp for development
+if 'RENDER' in os.environ:
+    import tempfile
+    FILE_UPLOAD_TEMP_DIR = tempfile.gettempdir()
+else:
+    FILE_UPLOAD_TEMP_DIR = os.path.join(BASE_DIR, 'temp')
 
 # Cloud Storage Configuration
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
