@@ -1,0 +1,23 @@
+Hello World!
+
+This is a test file for the File Conversion API.
+
+Features being tested:
+- File upload
+- Format detection
+- Real-time conversion
+- Progress tracking
+- File download
+
+The conversion API supports over 200 file formats including:
+- Documents (PDF, DOCX, TXT, RTF, ODT, HTML)
+- Images (JPG, PNG, GIF, BMP, TIFF, WEBP, SVG)
+- Spreadsheets (XLSX, XLS, CSV, ODS, TSV)
+- Audio (MP3, WAV, FLAC, AAC, OGG)
+- Video (MP4, AVI, MOV, WMV, FLV, WEBM)
+- Archives (ZIP, RAR, 7Z, TAR, GZ)
+- Data formats (JSON, XML, YAML)
+
+This test demonstrates the end-to-end workflow from file selection to conversion completion.
+
+Date: ${new Date().toISOString()}

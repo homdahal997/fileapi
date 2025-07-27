@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversion Result</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .result-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 150px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .completed { background: #d4edda; color: #155724; }
+        .failed { background: #f8d7da; color: #721c24; }
+        .processing { background: #fff3cd; color: #856404; }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+        .back-btn:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conversion Result</h1>
+        
+        <div class="result-info">
+            <div class="info-row">
+                <span class="info-label">Job ID:</span>
+                <span>{{ job.id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Original File:</span>
+                <span>{{ job.input_file.name|default:"Unknown" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">From:</span>
+                <span>{{ job.input_format|upper }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">To:</span>
+                <span>{{ job.output_format|upper }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="status {{ job.status }}">{{ job.status|capfirst }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Created:</span>
+                <span>{{ job.created_at|date:"Y-m-d H:i:s" }}</span>
+            </div>
+            {% if job.error_message %}
+            <div class="info-row">
+                <span class="info-label">Error:</span>
+                <span style="color: #dc3545;">{{ job.error_message }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div style="text-align: center;">
+            {% if job.status == 'completed' %}
+                <a href="{% url 'download-result' job_id=job.id %}" class="download-btn">Download Converted File</a>
+            {% elif job.status == 'processing' %}
+                <p>Your file is being processed. Please refresh the page in a few moments.</p>
+                <button onclick="location.reload()" class="download-btn">Refresh</button>
+            {% endif %}
+            
+            <a href="{% url 'conversion-form' %}" class="back-btn">Convert Another File</a>
+        </div>
+        
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="/admin/" style="color: #007cba;">Admin Interface</a> | 
+            <a href="/api/v1/docs/" style="color: #007cba;">API Documentation</a>
+        </div>
+    </div>
+</body>
+</html>
