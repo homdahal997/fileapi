@@ -1,0 +1,95 @@
+# Core Django and REST Framework
+Django==5.2.4
+djangorestframework==3.15.2
+django-cors-headers==4.6.0
+whitenoise==6.8.2
+
+# API Documentation
+drf-yasg==1.21.9
+
+# Authentication and Security
+PyJWT==2.10.1
+cryptography==44.0.0
+
+# Database
+psycopg2-binary==2.9.10
+mysqlclient==2.2.4
+dj-database-url==2.2.0
+
+# Production Server
+gunicorn==23.0.0
+
+# Cache and Message Broker
+redis==5.2.1
+django-redis==5.4.0
+
+# Celery for Background Tasks
+celery==5.4.0
+
+# File Processing Libraries
+Pillow==11.1.0
+python-magic==0.4.27
+
+# Cloud Storage SDKs
+boto3==1.35.97
+google-cloud-storage==2.19.0
+dropbox==12.0.2
+
+# Configuration Management
+python-decouple==3.8
+
+# Storage Backends
+django-storages==1.14.4
+
+# HTTP Requests
+requests==2.32.3
+
+# Production Server
+gunicorn==23.0.0
+
+# Development and Testing
+pytest==8.3.4
+pytest-django==4.9.0
+pytest-cov==6.0.0
+factory-boy==3.3.1
+
+# Code Quality
+black==25.1.0
+isort==5.13.2
+flake8==7.1.1
+
+# File Format Support Libraries
+# Document conversion
+pypdf2==3.0.1
+python-docx==1.1.2
+openpyxl==3.1.5
+xlsxwriter==3.2.0
+markdown==3.7
+beautifulsoup4==4.12.3
+
+# Image processing
+opencv-python==4.10.0.84
+imageio==2.36.1
+
+# Audio/Video processing (note: requires system dependencies)
+# moviepy==2.1.1  # Uncomment if needed
+# pydub==0.25.1   # Uncomment if needed
+
+# Archive handling
+py7zr==0.22.0
+rarfile==4.2
+
+# Data serialization
+pyyaml==6.0.2
+
+# Monitoring and Logging
+sentry-sdk==2.20.0
+
+# Task scheduling
+django-celery-beat==2.7.0
+
+# Rate limiting
+django-ratelimit==4.1.0
+
+# Environment detection
+django-environ==0.11.2
