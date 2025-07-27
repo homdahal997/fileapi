@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'drf_yasg',
-    'storages',
     
     # Local apps
     'conversions',
