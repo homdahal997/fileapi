@@ -5,6 +5,10 @@ set -o errexit
 
 echo "🚀 Starting Render.com build process..."
 
+# Upgrade pip first
+echo "⬆️ Upgrading pip..."
+python -m pip install --upgrade pip
+
 # Install dependencies
 echo "📦 Installing Python dependencies..."
 pip install -r requirements.txt
