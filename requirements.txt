@@ -20,6 +20,10 @@ PyJWT==2.10.1
 # API Documentation
 drf-yasg==1.21.9
 
+# Celery for Background Tasks (minimal setup)
+celery==5.4.0
+redis==5.2.1
+
 # File Processing Libraries (Core)
 Pillow==11.1.0
 PyPDF2==3.0.1
