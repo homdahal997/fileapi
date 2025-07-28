@@ -2,100 +2,24 @@
 Enhanced PDF to text converter with structure preservation and content boundary detection.
 """
 import re
-        try:
-            with open(pdf_path, "rb") as f:
-                reader = PyPDF2.PdfReader(f)
-                for page_num, page in enumerate(reader.pages):
-                    text = page.extract_text()
-                    if text:
-                        lines = text.splitlines()
-                        for line_num, line in enumerate(lines):
-                            element = TextElement(
-                                text=line,
-                                element_type="paragraph",
-                                page_number=page_num + 1
-                            )
-                            element = self._classify_element_enhanced(element, lines, line_num)
-                            self.elements.append(element)
-                    else:
-                        # No text found, try OCR
-                        ocr_text = self._extract_text_with_ocr(pdf_path, page_num)
-                        if ocr_text:
-                            element = TextElement(
-                                text=ocr_text,
-                                element_type="ocr_paragraph",
-                                page_number=page_num + 1
-                            )
-                            self.elements.append(element)
-            return self._format_structured_text()
-        except Exception as e:
-            logger.error(f"PyPDF2 extraction failed: {e}")
-            return f"PDF extraction failed: {str(e)}"
-            r'^([A-Z][A-Z\s]{2,})\s*$',  # ALL CAPS headers
-    def _extract_text_with_ocr(self, pdf_path: str, page_num: int) -> str:
-        """Extract text from image-based PDF page using OCR."""
-        try:
-            from pdf2image import convert_from_path
-            import pytesseract
-            # Convert specific page to image
-            images = convert_from_path(pdf_path, first_page=page_num+1, last_page=page_num+1)
-            if images:
-                ocr_text = pytesseract.image_to_string(images[0])
-                return ocr_text.strip()
-        except Exception as e:
-            logger.error(f"OCR extraction failed for page {page_num}: {e}")
-        return ""
-            r'^(\d+\.?\s+[A-Z][^.]*)\s*$',  # Numbered sections
-            r'^([IVX]+\.?\s+[A-Z][^.]*)\s*$',  # Roman numerals
-            r'^([A-Z]\.?\s+[A-Z][^.]*)\s*$',  # Letter sections
-        ]
-        self.list_patterns = [
-            r'^\s*[\•\*\-\+]\s+',  # Bullet points
-            r'^\s*\d+[\.\)]\s+',   # Numbered lists
-            r'^\s*[a-z][\.\)]\s+', # Letter lists
-            r'^\s*[ivx]+[\.\)]\s+', # Roman numeral lists
-        ]
-    
-    def extract_structured_text(self, file_content: bytes, 
-                              preserve_structure: bool = True) -> str:
-        """
-        Extract text from PDF with structure preservation.
-        
-        Args:
-            file_content: PDF file content as bytes
-            preserve_structure: Whether to preserve document structure
-            
-        Returns:
-            Formatted text with structure preserved
-        """
-        try:
-            # Try advanced extraction with pdfplumber first
-            structured_text = self._extract_with_pdfplumber(file_content)
-            if structured_text and preserve_structure:
-                return self._format_structured_text()
-            
-            # Fallback to PyMuPDF if available
-            if not structured_text:
-                structured_text = self._extract_with_pymupdf(file_content)
-                if structured_text and preserve_structure:
-                    return self._format_structured_text()
-            
-            # Final fallback to PyPDF2
-            if not structured_text:
-                structured_text = self._extract_with_pypdf2(file_content)
-            
-            return structured_text or "No readable text found in the PDF document."
-            
-        except Exception as e:
-            logger.error(f"PDF extraction failed: {e}")
-            # Final fallback
-            return self._extract_with_pypdf2(file_content)
+from io import BytesIO
+from typing import List, Dict, Optional, Any, Tuple
+from .models import TextElement
+import logging
+logger = logging.getLogger(__name__)
+
+class StructuredPDFExtractor:
+    """Enhanced PDF to text converter with structure preservation and OCR for image-based PDFs."""
+    # ...existing code...
     
     def _extract_with_pdfplumber(self, file_content: bytes) -> str:
         """Extract text using pdfplumber with detailed structure analysis."""
         try:
-            import pdfplumber
-            
+            try:
+                import pdfplumber
+            except ImportError:
+                logger.info("pdfplumber not available, falling back to other methods")
+                return ""
             with pdfplumber.open(BytesIO(file_content)) as pdf:
                 self.elements = []
                 
