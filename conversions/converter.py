@@ -527,24 +527,90 @@ class FileConverterService:
             raise ConversionError(f"Text to PDF conversion failed: {str(e)}")
     
     def _pdf_to_txt(self, file_content: bytes) -> bytes:
-        """Convert PDF to text using PyPDF2."""
+        """Convert PDF to text with enhanced structure detection."""
         try:
+            # Try enhanced structure-preserving extraction first
+            from .pdf_structure_extractor import extract_structured_pdf_text
+            
+            try:
+                structured_text, document_structure = extract_structured_pdf_text(
+                    file_content, 
+                    options={'preserve_structure': True}
+                )
+                
+                # Add document structure metadata as comments
+                metadata = [
+                    f"# Document Structure Analysis",
+                    f"# Total Pages: {document_structure.get('total_pages', 'Unknown')}",
+                    f"# Headers: {document_structure.get('statistics', {}).get('headers', 0)}",
+                    f"# Paragraphs: {document_structure.get('statistics', {}).get('paragraphs', 0)}",
+                    f"# Lists: {document_structure.get('statistics', {}).get('lists', 0)}",
+                    f"# Tables: {document_structure.get('statistics', {}).get('tables', 0)}",
+                    f"# Extraction Method: Enhanced Structure Detection",
+                    f"# {'='*60}",
+                    ""
+                ]
+                
+                final_text = "\n".join(metadata) + "\n" + structured_text
+                return final_text.encode('utf-8')
+                
+            except Exception as enhanced_error:
+                print(f"Enhanced extraction failed: {enhanced_error}, falling back to basic extraction")
+                # Fall back to basic PyPDF2 extraction
+                pass
+            
+            # Fallback to basic PyPDF2 extraction
             import PyPDF2
             from io import BytesIO
             
             # Read PDF from bytes
             pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
             
-            # Extract text from all pages
+            # Extract text from all pages with basic structure
             text_content = ""
+            text_content += "# Document Extracted with Basic Method\n"
+            text_content += f"# Total Pages: {len(pdf_reader.pages)}\n"
+            text_content += "# Note: For better structure detection, install pdfplumber and pymupdf\n"
+            text_content += f"# {'='*60}\n\n"
+            
             for page_num in range(len(pdf_reader.pages)):
+                text_content += f"\n{'='*50}\n"
+                text_content += f"PAGE {page_num + 1}\n"
+                text_content += f"{'='*50}\n\n"
+                
                 page = pdf_reader.pages[page_num]
-                text_content += page.extract_text() + "\n\n"
+                page_text = page.extract_text()
+                
+                if page_text:
+                    # Apply basic structure formatting
+                    lines = page_text.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        
+                        # Basic header detection
+                        if (len(line) < 100 and 
+                            (line.isupper() or 
+                             any(line.startswith(prefix) for prefix in ['1.', '2.', '3.', '4.', '5.']) or
+                             any(line.startswith(prefix) for prefix in ['I.', 'II.', 'III.', 'IV.', 'V.']))):
+                            text_content += f"\n# {line}\n\n"
+                        
+                        # Basic list detection
+                        elif (line.startswith(('• ', '* ', '- ', '+ ')) or
+                              any(line.startswith(f"{i}.") for i in range(1, 20)) or
+                              any(line.startswith(f"{chr(97+i)}.") for i in range(26))):
+                            text_content += f"  • {line.lstrip('•*-+ ').lstrip('0123456789.).abcdefghijklmnopqrstuvwxyz')}\n"
+                        
+                        else:
+                            text_content += f"{line}\n"
+                    
+                    text_content += "\n"
             
             # Clean up the text
             text_content = text_content.strip()
             
-            if not text_content:
+            if not text_content or text_content.count('#') == text_content.count('\n'):
                 text_content = "No readable text found in the PDF document."
             
             return text_content.encode('utf-8')

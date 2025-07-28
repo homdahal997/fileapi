@@ -27,6 +27,10 @@ class SimpleConvertView(APIView):
             input_file = request.FILES.get('input_file')
             output_format = request.data.get('output_format', '').lower()
             
+            # Get conversion options
+            preserve_structure = request.data.get('preserve_structure', 'true').lower() == 'true'
+            extract_metadata = request.data.get('extract_metadata', 'false').lower() == 'true'
+            
             if not input_file:
                 return Response(
                     {'error': 'input_file is required'}, 
@@ -79,7 +83,11 @@ class SimpleConvertView(APIView):
                 output_format=output_format_obj,
                 input_file_size=input_file.size,
                 status='processing',
-                started_at=timezone.now()
+                started_at=timezone.now(),
+                conversion_options={
+                    'preserve_structure': preserve_structure,
+                    'extract_metadata': extract_metadata,
+                }
             )
             
             # Save input file
@@ -88,9 +96,14 @@ class SimpleConvertView(APIView):
             job.save()
             
             try:
-                # Perform conversion
+                # Perform conversion with options
+                conversion_options = {
+                    'preserve_structure': preserve_structure,
+                    'extract_metadata': extract_metadata,
+                }
+                
                 converted_content, output_filename = converter_service.convert_file(
-                    input_file, input_format, output_format, {}
+                    input_file, input_format, output_format, conversion_options
                 )
                 
                 # Save output file
@@ -114,14 +127,20 @@ class SimpleConvertView(APIView):
             job.save()
             
             # Return response in expected format
-            return Response({
+            response_data = {
                 'job_id': str(job.id),
                 'status': job.status,
                 'input_format': input_format,
                 'output_format': output_format,
                 'created_at': job.created_at.isoformat(),
+                'conversion_options': {
+                    'preserve_structure': preserve_structure,
+                    'extract_metadata': extract_metadata,
+                },
                 'error_message': job.error_message if job.status == 'failed' else None
-            }, status=status.HTTP_201_CREATED)
+            }
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             return Response(
