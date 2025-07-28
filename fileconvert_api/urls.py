@@ -22,6 +22,8 @@ from django.views.generic import RedirectView
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from conversions import views
+from conversions import simple_api_views
 
 # API Documentation Schema
 schema_view = get_schema_view(
@@ -70,8 +72,14 @@ urlpatterns = [
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui-alt'),
     
-    # API Endpoints
+    # API Endpoints - Direct access (for easy integration)
+    path('api/convert/', simple_api_views.SimpleConvertView.as_view(), name='api-convert'),
+    path('api/convert/<uuid:job_id>/status/', simple_api_views.SimpleJobStatusView.as_view(), name='api-job-status'),
+    path('api/convert/<uuid:job_id>/download/', simple_api_views.SimpleDownloadView.as_view(), name='api-download'),
+    
+    # API Endpoints - Versioned
     path('api/v1/auth/', include('authentication.urls')),
     path('api/v1/conversions/', include('conversions.urls')),
     path('api/v1/storage/', include('storage_integrations.urls')),
