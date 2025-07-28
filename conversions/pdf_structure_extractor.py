@@ -2,36 +2,49 @@
 Enhanced PDF to text converter with structure preservation and content boundary detection.
 """
 import re
-import json
-from typing import List, Dict, Any, Tuple, Optional
-from dataclasses import dataclass
-from io import BytesIO
-import logging
-
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class TextElement:
-    """Represents a text element with structural information."""
-    text: str
-    element_type: str  # 'header', 'subheader', 'paragraph', 'list_item', 'footer', 'table'
-    level: int = 0  # For headers (1-6), list nesting level
-    font_size: Optional[float] = None
-    is_bold: bool = False
-    is_italic: bool = False
-    bbox: Optional[Tuple[float, float, float, float]] = None  # (x0, y0, x1, y1)
-    page_number: int = 1
-
-
-class StructuredPDFExtractor:
-    """Enhanced PDF text extractor with structure detection."""
-    
-    def __init__(self):
-        self.elements: List[TextElement] = []
-        self.avg_font_size = 12.0
-        self.header_patterns = [
+        try:
+            with open(pdf_path, "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                for page_num, page in enumerate(reader.pages):
+                    text = page.extract_text()
+                    if text:
+                        lines = text.splitlines()
+                        for line_num, line in enumerate(lines):
+                            element = TextElement(
+                                text=line,
+                                element_type="paragraph",
+                                page_number=page_num + 1
+                            )
+                            element = self._classify_element_enhanced(element, lines, line_num)
+                            self.elements.append(element)
+                    else:
+                        # No text found, try OCR
+                        ocr_text = self._extract_text_with_ocr(pdf_path, page_num)
+                        if ocr_text:
+                            element = TextElement(
+                                text=ocr_text,
+                                element_type="ocr_paragraph",
+                                page_number=page_num + 1
+                            )
+                            self.elements.append(element)
+            return self._format_structured_text()
+        except Exception as e:
+            logger.error(f"PyPDF2 extraction failed: {e}")
+            return f"PDF extraction failed: {str(e)}"
             r'^([A-Z][A-Z\s]{2,})\s*$',  # ALL CAPS headers
+    def _extract_text_with_ocr(self, pdf_path: str, page_num: int) -> str:
+        """Extract text from image-based PDF page using OCR."""
+        try:
+            from pdf2image import convert_from_path
+            import pytesseract
+            # Convert specific page to image
+            images = convert_from_path(pdf_path, first_page=page_num+1, last_page=page_num+1)
+            if images:
+                ocr_text = pytesseract.image_to_string(images[0])
+                return ocr_text.strip()
+        except Exception as e:
+            logger.error(f"OCR extraction failed for page {page_num}: {e}")
+        return ""
             r'^(\d+\.?\s+[A-Z][^.]*)\s*$',  # Numbered sections
             r'^([IVX]+\.?\s+[A-Z][^.]*)\s*$',  # Roman numerals
             r'^([A-Z]\.?\s+[A-Z][^.]*)\s*$',  # Letter sections
@@ -118,17 +131,20 @@ class StructuredPDFExtractor:
         """Extract text using PyMuPDF with structure analysis (optional)."""
         # PyMuPDF removed due to compatibility issues on some platforms
     def _extract_with_pypdf2(self, file_content: bytes) -> str:
-        """Enhanced extraction using PyPDF2 with improved structure detection."""
+        """Enhanced extraction using PyPDF2 with improved structure detection and OCR for image-based pages."""
         try:
             import PyPDF2
-            
+            from pdf2image import convert_from_bytes
+            import pytesseract
+            from io import BytesIO
+
             pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
             self.elements = []
-            
+
             for page_num in range(len(pdf_reader.pages)):
                 page = pdf_reader.pages[page_num]
                 page_text = page.extract_text()
-                
+
                 if page_text:
                     # Enhanced structure detection on plain text
                     lines = page_text.split('\n')
@@ -136,21 +152,30 @@ class StructuredPDFExtractor:
                         line = line.strip()
                         if not line:
                             continue
-                        
                         element = TextElement(
                             text=line,
                             element_type="paragraph",
                             page_number=page_num + 1
                         )
-                        
                         # Enhanced classification with context
                         element = self._classify_element_enhanced(element, lines, line_num)
                         self.elements.append(element)
-            
+                else:
+                    # No text found, try OCR
+                    images = convert_from_bytes(file_content, first_page=page_num+1, last_page=page_num+1)
+                    if images:
+                        ocr_text = pytesseract.image_to_string(images[0])
+                        ocr_text = ocr_text.strip()
+                        if ocr_text:
+                            element = TextElement(
+                                text=ocr_text,
+                                element_type="ocr_paragraph",
+                                page_number=page_num + 1
+                            )
+                            self.elements.append(element)
             return self._format_structured_text()
-            
         except Exception as e:
-            logger.error(f"PyPDF2 extraction failed: {e}")
+            logger.error(f"PyPDF2/OCR extraction failed: {e}")
             return f"PDF extraction failed: {str(e)}"
     
     def _classify_element_enhanced(self, element: TextElement, all_lines: List[str], line_index: int) -> TextElement:
