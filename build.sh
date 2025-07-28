@@ -21,4 +21,8 @@ python manage.py collectstatic --no-input
 echo "🗄️ Running database migrations..."
 python manage.py migrate
 
+# Create superuser automatically (for free tier users without shell access)
+echo "👤 Creating superuser automatically..."
+python manage.py create_superuser_env || echo "Superuser creation skipped (may already exist)"
+
 echo "✅ Build completed successfully!"
