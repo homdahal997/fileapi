@@ -30,10 +30,6 @@ PyPDF2==3.0.1
 python-docx==1.1.2
 openpyxl==3.1.5
 
-# Enhanced PDF processing with structure detection
-pdfplumber==0.11.0
-pymupdf==1.23.19
-
 # HTTP Requests
 requests==2.32.3
 

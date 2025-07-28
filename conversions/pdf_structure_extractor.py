@@ -87,93 +87,52 @@ class StructuredPDFExtractor:
                 self.elements = []
                 
                 for page_num, page in enumerate(pdf.pages, 1):
-                    # Extract characters with font information
-                    chars = page.chars
-                    if not chars:
+                    try:
+                        # Extract characters with font information
+                        chars = page.chars
+                        if not chars:
+                            continue
+                        
+                        # Group characters into text blocks
+                        text_blocks = self._group_chars_into_blocks(chars)
+                        
+                        # Analyze each text block for structure
+                        for block in text_blocks:
+                            element = self._analyze_text_block(block, page_num)
+                            if element and element.text.strip():
+                                self.elements.append(element)
+                    except Exception as page_error:
+                        logger.warning(f"Error processing page {page_num}: {page_error}")
                         continue
-                    
-                    # Group characters into text blocks
-                    text_blocks = self._group_chars_into_blocks(chars)
-                    
-                    # Analyze each text block for structure
-                    for block in text_blocks:
-                        element = self._analyze_text_block(block, page_num)
-                        if element and element.text.strip():
-                            self.elements.append(element)
                 
                 return "structured_extraction_complete"
                 
         except ImportError:
-            logger.warning("pdfplumber not available, falling back to other methods")
+            logger.info("pdfplumber not available, falling back to other methods")
             return ""
         except Exception as e:
-            logger.error(f"pdfplumber extraction failed: {e}")
+            logger.warning(f"pdfplumber extraction failed: {e}, falling back to other methods")
             return ""
     
     def _extract_with_pymupdf(self, file_content: bytes) -> str:
-        """Extract text using PyMuPDF with structure analysis."""
-        try:
-            import fitz  # PyMuPDF
-            
-            doc = fitz.open(stream=file_content, filetype="pdf")
-            self.elements = []
-            
-            for page_num in range(len(doc)):
-                page = doc.load_page(page_num)
-                
-                # Get text with font information
-                blocks = page.get_text("dict")
-                
-                for block in blocks["blocks"]:
-                    if "lines" not in block:
-                        continue
-                    
-                    for line in block["lines"]:
-                        for span in line["spans"]:
-                            text = span["text"].strip()
-                            if not text:
-                                continue
-                            
-                            element = TextElement(
-                                text=text,
-                                element_type="paragraph",
-                                font_size=span["size"],
-                                is_bold="bold" in span["font"].lower(),
-                                is_italic="italic" in span["font"].lower(),
-                                bbox=span["bbox"],
-                                page_number=page_num + 1
-                            )
-                            
-                            # Classify element type
-                            element = self._classify_element(element)
-                            self.elements.append(element)
-            
-            doc.close()
-            return "structured_extraction_complete"
-            
-        except ImportError:
-            logger.warning("PyMuPDF not available, falling back to PyPDF2")
-            return ""
-        except Exception as e:
-            logger.error(f"PyMuPDF extraction failed: {e}")
-            return ""
-    
+        """Extract text using PyMuPDF with structure analysis (optional)."""
+        # PyMuPDF removed due to compatibility issues on some platforms
     def _extract_with_pypdf2(self, file_content: bytes) -> str:
-        """Fallback extraction using PyPDF2."""
+        """Enhanced extraction using PyPDF2 with improved structure detection."""
         try:
             import PyPDF2
             
             pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
-            text_content = ""
+            self.elements = []
             
             for page_num in range(len(pdf_reader.pages)):
                 page = pdf_reader.pages[page_num]
                 page_text = page.extract_text()
                 
                 if page_text:
-                    # Basic structure detection on plain text
+                    # Enhanced structure detection on plain text
                     lines = page_text.split('\n')
-                    for line in lines:
+                    for line_num, line in enumerate(lines):
                         line = line.strip()
                         if not line:
                             continue
@@ -183,10 +142,161 @@ class StructuredPDFExtractor:
                             element_type="paragraph",
                             page_number=page_num + 1
                         )
-                        element = self._classify_element_simple(element)
+                        
+                        # Enhanced classification with context
+                        element = self._classify_element_enhanced(element, lines, line_num)
                         self.elements.append(element)
             
             return self._format_structured_text()
+            
+        except Exception as e:
+            logger.error(f"PyPDF2 extraction failed: {e}")
+            return f"PDF extraction failed: {str(e)}"
+    
+    def _classify_element_enhanced(self, element: TextElement, all_lines: List[str], line_index: int) -> TextElement:
+        """Enhanced classification with context from surrounding lines."""
+        text = element.text.strip()
+        
+        # Get context lines
+        prev_line = all_lines[line_index - 1].strip() if line_index > 0 else ""
+        next_line = all_lines[line_index + 1].strip() if line_index < len(all_lines) - 1 else ""
+        
+        # Enhanced header detection
+        if self._is_enhanced_header(text, prev_line, next_line):
+            element.element_type = "header"
+            element.level = self._determine_header_level_enhanced(text)
+        
+        # Enhanced list detection
+        elif self._is_enhanced_list_item(text, prev_line, next_line):
+            element.element_type = "list_item"
+            element.level = self._determine_list_level(text)
+        
+        # Page number detection
+        elif self._is_page_number(text):
+            element.element_type = "footer"
+        
+        # Table row detection
+        elif self._is_table_row(text):
+            element.element_type = "table"
+        
+        # Section break detection
+        elif self._is_section_break(text):
+            element.element_type = "section_break"
+        
+        return element
+    
+    def _is_enhanced_header(self, text: str, prev_line: str, next_line: str) -> bool:
+        """Enhanced header detection with context."""
+        # Original header patterns
+        if any(re.match(pattern, text) for pattern in self.header_patterns):
+            return True
+        
+        # Short lines that are isolated (likely headers)
+        if len(text) < 80 and len(prev_line) == 0 and len(next_line) > 0:
+            return True
+        
+        # All caps headers
+        if text.isupper() and len(text) > 3 and len(text) < 100:
+            return True
+        
+        # Numbered sections
+        if re.match(r'^\d+(\.\d+)*\.?\s+[A-Z]', text):
+            return True
+        
+        # Title case headers (most words capitalized)
+        words = text.split()
+        if len(words) > 1 and len(words) < 10:
+            capitalized_words = sum(1 for word in words if word[0].isupper() and len(word) > 2)
+            if capitalized_words / len(words) > 0.7:
+                return True
+        
+        return False
+    
+    def _is_enhanced_list_item(self, text: str, prev_line: str, next_line: str) -> bool:
+        """Enhanced list item detection."""
+        # Original list patterns
+        if any(re.match(pattern, text) for pattern in self.list_patterns):
+            return True
+        
+        # Continuation of list (similar indentation pattern)
+        if prev_line and any(re.match(pattern, prev_line) for pattern in self.list_patterns):
+            # Check if current line continues the list pattern
+            if text.startswith(('  ', '\t')) or re.match(r'^\s*[a-z]', text):
+                return True
+        
+        # Dash-style lists
+        if re.match(r'^\s*[-–—]\s+', text):
+            return True
+        
+        # Parenthetical lists
+        if re.match(r'^\s*\([a-z0-9]+\)\s+', text):
+            return True
+        
+        return False
+    
+    def _is_page_number(self, text: str) -> bool:
+        """Detect page numbers."""
+        # Simple page numbers
+        if re.match(r'^\s*\d+\s*$', text):
+            return True
+        
+        # Page X of Y format
+        if re.match(r'^\s*page\s+\d+\s*(of\s+\d+)?\s*$', text.lower()):
+            return True
+        
+        return False
+    
+    def _is_table_row(self, text: str) -> bool:
+        """Detect table rows."""
+        # Multiple tabs or large spaces
+        if '\t' in text or re.search(r'\s{4,}', text):
+            return True
+        
+        # Multiple numbers with separators
+        if len(re.findall(r'\b\d+(?:\.\d+)?\b', text)) >= 3:
+            return True
+        
+        # Pipe-separated values
+        if text.count('|') >= 2:
+            return True
+        
+        return False
+    
+    def _is_section_break(self, text: str) -> bool:
+        """Detect section breaks."""
+        # Lines of dashes, equals, asterisks
+        if re.match(r'^[-=*_]{3,}$', text):
+            return True
+        
+        # Page break indicators
+        if text.lower() in ['page break', 'new page', '***']:
+            return True
+        
+        return False
+    
+    def _determine_header_level_enhanced(self, text: str) -> int:
+        """Determine header level with enhanced logic."""
+        # Numbered sections
+        numbered_match = re.match(r'^(\d+(?:\.\d+)*)', text)
+        if numbered_match:
+            levels = numbered_match.group(1).count('.') + 1
+            return min(levels, 6)
+        
+        # Roman numerals
+        if re.match(r'^[IVX]+\.?\s+', text):
+            return 1
+        
+        # All caps = higher priority
+        if text.isupper():
+            return 1
+        
+        # Length-based classification
+        if len(text) < 30:
+            return 2
+        elif len(text) < 60:
+            return 3
+        else:
+            return 4
             
         except Exception as e:
             logger.error(f"PyPDF2 extraction failed: {e}")
@@ -416,6 +526,9 @@ class StructuredPDFExtractor:
             
             elif element.element_type == "table":
                 output_lines.append(f"[TABLE] {element.text}")
+            
+            elif element.element_type == "section_break":
+                output_lines.append(f"\n{'-'*40}\n")
             
             else:  # paragraph
                 output_lines.append(f"{element.text}\n")
