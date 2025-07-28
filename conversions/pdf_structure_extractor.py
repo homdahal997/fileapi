@@ -297,10 +297,6 @@ class StructuredPDFExtractor:
             return 3
         else:
             return 4
-            
-        except Exception as e:
-            logger.error(f"PyPDF2 extraction failed: {e}")
-            return f"PDF extraction failed: {str(e)}"
     
     def _group_chars_into_blocks(self, chars: List[Dict]) -> List[List[Dict]]:
         """Group characters into logical text blocks."""
