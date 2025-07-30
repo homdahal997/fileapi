@@ -1,6 +1,8 @@
 """
 Models for the conversions app.
 """
+from dataclasses import dataclass
+from typing import Optional, Tuple
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
@@ -252,3 +254,17 @@ class ConversionHistory(models.Model):
     
     def __str__(self):
         return f"{self.user.username}: {self.input_format} → {self.output_format}"
+
+# --- TextElement dataclass for structured PDF extraction ---
+@dataclass
+class TextElement:
+    """
+    Represents a structured text element extracted from a PDF page.
+    """
+    text: str
+    element_type: str  # e.g., 'header', 'paragraph', 'list', etc.
+    page_number: int
+    level: Optional[int] = None
+    font_size: Optional[float] = None
+    bbox: Optional[Tuple[float, float, float, float]] = None
+    is_bold: Optional[bool] = None
